@@ -1,78 +1,81 @@
-import { useState } from 'react'
-import {nanoid} from "nanoid";
+import {useEffect, useState} from 'react'
+import axios from "axios";
+import TodosList from "./components/TodosList/index.js";
+import FormList from "./components/FormList/index.js";
+
 function App() {
   const [value, setValue] = useState('')
-  const [todos, setTodos] = useState(JSON.parse(localStorage.getItem('todos')) || [])
-  const [editableItem, seteditableItem] = useState(null)
+  const [todos, setTodos] = useState( [])
+  const [editableItem, setEditableItem] = useState(null)
 
   const handleChange = (e) =>{
     setValue(e.target.value)
+
   }
   const createItem =() =>{
-    const newTodo = {
-      title: value,
-      id: nanoid()
-    }
-    setTodos([...todos, newTodo])
-    localStorage.setItem('todos', JSON.stringify([...todos, newTodo]))
+    axios.post(`https://656d7f61bcc5618d3c23460f.mockapi.io/api/todos`, {title: value})
+      .then(({data}) => setTodos([...todos, data]))
     setValue('')
   }
 
   const deleteItem = (id) => {
-    const filteredLIst = todos.filter((el) => el.id !== id)
-    localStorage.setItem('todos', JSON.stringify(filteredLIst))
-    setTodos(filteredLIst)
+    axios.delete(`https://656d7f61bcc5618d3c23460f.mockapi.io/api/todos/${id}`)
+      .then(() => {
+        const filteredLIst = todos.filter((el) => el.id !== id)
+        setTodos(filteredLIst)
+      })
+      .catch(() => alert("Failed"))
+
   }
   const editItem = (todo) =>{
-    seteditableItem(todo)
+    setEditableItem(todo)
   }
   const editCancallation = () =>{
-    seteditableItem(null)
+    setEditableItem(null)
   }
   const handleChangeEdit = (e) =>{
-    seteditableItem({...editableItem, title: e.target.value})
-  }
-  const saveItem = () =>{
-    const updateList = todos.map(elem => elem.id === editableItem.id ? editableItem : elem)
-    localStorage.setItem('todos', JSON.stringify(updateList))
-    setTodos(updateList)
-    seteditableItem(null)
-  }
+    setEditableItem({...editableItem, title: e.target.value})
 
+  }
+  const  handleUpdateTodo = () =>{
+    axios.put(`https://656d7f61bcc5618d3c23460f.mockapi.io/api/todos/${editableItem.id}`,editableItem)
+      .then(({data}) => {
+        const updateList = todos.map(elem => elem.id === data.id ? data : elem)
+        setTodos(updateList)
+        setEditableItem(null)
+      })
+  }
+const handleKeyUp = (e) =>{
+   if ( e.key === "Enter" ){
+     createItem()
+   }
+
+}
+
+  useEffect(() => {
+        axios("https://656d7f61bcc5618d3c23460f.mockapi.io/api/todos")
+          .then(({data}) => setTodos(data) )
+  }, []);
   return (
     <>
         <h1 className='text-center mt-5 fw-bold'>ToDo</h1>
       <div className="row mt-5">
        <div className="col-4 offset-4">
-        <div className="d-flex">
-          <input className="form-control" type="text" value={value} onChange={handleChange}/>
-          <button className='btn btn-success flex-shrink-0 ms-4' onClick={createItem}>Create</button>
-        </div>
-       <ul className="list-group mt-3">
-         {
-           todos.map((todo)=>(
-             <li className="list-group-item d-flex justify-content-between" key={todo.id}>
-               {
-                  editableItem?.id === todo.id ?
-                   <input defaultValue={todo.title} className="form-control-sm" type="text" onChange={handleChangeEdit}/>
-                   : todo.title
-               }
-               {
-              editableItem?.id === todo.id ?
-                   <div>
-                     <button className="btn btn-warning btn-sm" onClick={saveItem}> Save</button>
-                     <button className="btn btn-danger btn-sm ms-2" onClick={editCancallation}> Cancel</button>
-                   </div>
-                   :
-                   <div>
-                     <button className="btn btn-warning btn-sm" onClick={()=> editItem(todo)}> Edit</button>
-                     <button className="btn btn-danger btn-sm ms-2" onClick={()=> deleteItem(todo.id)}> Delete</button>
-                   </div>
-               }
-             </li>
-           ))
-         }
-       </ul>
+       <FormList
+         handleKeyUp={handleKeyUp}
+         handleChange={handleChange}
+         createItem={createItem}
+         value={value}
+       />
+          <TodosList
+            todos={todos}
+            editableItem={editableItem}
+            handleChangeEdit={handleChangeEdit}
+            handleUpdateTodo={handleUpdateTodo}
+            editCancallation={editCancallation}
+            editItem={editItem}
+            deleteItem={deleteItem}
+          />
        </div>
       </div>
     </>
